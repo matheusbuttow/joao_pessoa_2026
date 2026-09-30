@@ -55,6 +55,10 @@ Sim (the sim has no person to gesture, so type the gestures in):
     scripts/docker_up.sh --phase3
     ros2 topic pub -r 10 /hydrone/gesture/inject std_msgs/String "data: DIREITA"
 
+or from the keyboard, in a second terminal inside the container (`docker compose exec -it hydrone bash`):
+
+    ros2 run hydrone_mission gesture_keys     # w/s/a/d, r/f, t, l, space; q quits
+
 `HumanGesture.msg` gained fields, and there are new entry points. On a `--dev` container that means running `scripts/dev_rebuild.sh` once.
 
 Real drone: start the Livox driver (`ros2 launch livox_ros_driver2 msg_MID360_launch.py`; the repo only carries its messages), then:
