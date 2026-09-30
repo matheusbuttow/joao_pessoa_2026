@@ -237,8 +237,31 @@ def _launch_setup(context, *args, **kwargs):
         }],
     )
 
+    # Phase 3 (mission:=gesture, via phase3_sim.launch.py): the camera the
+    # scenario calls FrontCamera -> gestures -> the mission. The sim has no
+    # person in it, so /hydrone/gesture/inject stands in for the arms.
+    is_gesture = IfCondition(PythonExpression(["'", LaunchConfiguration('mission'), "' == 'gesture'"]))
+    gesture_detector = Node(
+        package='hydrone_vision', executable='gesture_detector_node', output='screen',
+        condition=is_gesture,
+        parameters=[{
+            'source': 'topic',
+            'image_topic': f'{prefix}/FrontCamera',
+            'backend': LaunchConfiguration('gesture_backend'),
+        }],
+    )
+    gesture_mission = Node(
+        package='hydrone_mission', executable='phase3_gesture_node', output='screen',
+        condition=is_gesture,
+        parameters=[{
+            'lidar_mount': mount_xyz,
+            'auto_start': LaunchConfiguration('auto_start').perform(context).lower() == 'true',
+            'allow_inject': LaunchConfiguration('allow_inject').perform(context).lower() == 'true',
+        }],
+    )
+
     return [ardubridge, sitl_dds, livox, fast_lio, adapter, prior, mavros, lio_nav,
-            lio_map, odom_error, maze]
+            lio_map, odom_error, maze, gesture_detector, gesture_mission]
 
 
 def generate_launch_description():
@@ -267,13 +290,20 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'mission', default_value='none',
             description="'maze' flies phase4_maze_node through the structure "
-                        'right of spawn; none just brings the vehicle up.'),
+                        "right of spawn; 'gesture' flies the Phase 3 gesture mission "
+                        '(use phase3_sim.launch.py); none just brings the vehicle up.'),
         DeclareLaunchArgument(
             'flight_z', default_value='0.5',
             description='odom height the maze mission plans at (window centre).'),
         DeclareLaunchArgument(
             'auto_start', default_value='true',
             description='Let the maze mission arm and take off by itself.'),
+        DeclareLaunchArgument(
+            'allow_inject', default_value='true',
+            description='mission:=gesture: accept gestures typed on /hydrone/gesture/inject.'),
+        DeclareLaunchArgument(
+            'gesture_backend', default_value='mediapipe',
+            description="mission:=gesture: pose model, 'mediapipe' or 'yolo'."),
         DeclareLaunchArgument(
             'measure_drift', default_value='true',
             description='Log LIO drift against ground truth (sim only, never fed back).'),

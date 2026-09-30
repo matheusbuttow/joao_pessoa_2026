@@ -73,6 +73,7 @@ WRAPPER_PAIRS = [
     # tightly than "nothing" would.
     ("phase1_dry.launch.py", "phase1.launch.py"),
     ("phase1_dry.launch.py", "sources_real.launch.py"),
+    ("phase3_sim.launch.py", "phase4_sim.launch.py"),
 ]
 
 # {wrapper: {inner: allowed forwards}}. Every entry needs the argument written
@@ -90,6 +91,11 @@ FORWARDING_EXEMPT = {
         {"field_mode", "dry_run"},
     ("phase1_dry.launch.py", "sources_real.launch.py"):
         {"zed_point_cloud"},
+    # Phase 3 IS phase4_sim with another airframe file and mission: phase and
+    # mission are fixed; agent_name (the camera scenario) and map_name forward
+    # with a fallback default and are not declared, so the command line wins.
+    ("phase3_sim.launch.py", "phase4_sim.launch.py"):
+        {"agent_name", "map_name", "phase", "mission"},
 }
 
 
@@ -257,6 +263,8 @@ LAUNCH_FILES = [
     # The Kopis/Livox airframe. Shares only the bridge, SITL and MAVROS with
     # everything above it, which is why it is one entry and not a pair.
     "phase4_sim.launch.py",
+    # Phase 3 on the same airframe; phase3_sim is a pure include of phase4_sim.
+    "phase3_real.launch.py",
 ]
 
 
