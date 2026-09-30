@@ -11,8 +11,11 @@ the same way. The mission's state line is shown underneath.
 
   w APROXIMAR   s AFASTAR    a ESQUERDA   d DIREITA
   r SUBIR       f DESCER     t STOP       l POUSAR
-  space HOVER (also "the operator is in view": FIND needs a person)
-  0 nobody in view      q quit
+  space HOVER          0 nobody in view      q quit
+
+It starts on HOVER, i.e. the operator already standing in view: FIND then
+finds them straight away instead of sweeping the yaw first (a typed operator
+is always dead centre, so nothing would turn the drone back after a sweep).
 """
 
 import select
@@ -37,7 +40,7 @@ class GestureKeys(Node):
         super().__init__('gesture_keys')
         self.pub = self.create_publisher(String, '/hydrone/gesture/inject', 10)
         self.create_subscription(String, '/hydrone/gesture/state', self._state_cb, 10)
-        self.gesture = 'SEM_PESSOA'
+        self.gesture = 'HOVER'
         self.state = '(no mission state yet)'
 
     def _state_cb(self, m):

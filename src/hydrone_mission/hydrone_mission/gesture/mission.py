@@ -136,6 +136,7 @@ class MissionParams:
     yaw_kp: float = 1.2
     yaw_rate_max: float = 0.5       # rad/s
     yaw_tol_deg: float = 5.0
+    turn_timeout_s: float = 20.0    # the turn never settles: yaw does not follow yaw_rate
     settle_s: float = 1.0
     obs_timeout: float = 0.5        # gesture message older than this: camera dead
     find_confirm_s: float = 0.8
@@ -300,6 +301,11 @@ class Mission:
 
     def _turn(self, t, pos, yaw, obs, person, obst, obst_t, armed):
         err = wrap(self.yaw_goal - yaw)
+        if t - self.t_state >= self.p.turn_timeout_s:
+            # a flipped yaw-rate sign makes this loop run AWAY from the goal
+            self._go("LAND", t, f"turn not done in {self.p.turn_timeout_s:.0f} s "
+                     f"({math.degrees(err):+.0f} deg to go): check the yaw_rate sign")
+            return self._hold_cmd(pos)
         if self._settled(t, abs(err) < math.radians(self.p.yaw_tol_deg)):
             self.t_in_tol = None
             self._enter_find(t, pos, yaw, "facing the operator's side")

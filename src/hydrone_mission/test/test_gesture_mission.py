@@ -115,6 +115,23 @@ def test_takeoff_forward_one_metre_then_turn_right():
     assert math.degrees(d.yaw) == pytest.approx(-90.0, abs=5.0)
 
 
+def test_turn_that_never_settles_lands():
+    m = Mission(MissionParams(), logger=lambda s: None)
+    d = Drone(m)
+    m.start()
+    assert d.run(30, until=lambda d: m.state == "TURN")
+    # the FCU turns the other way: the yaw loop runs away from the goal
+    d.cmds.clear()
+    step = d.m.step
+
+    def flipped(*a, **k):
+        c = step(*a, **k)
+        c.yaw_rate = -c.yaw_rate
+        return c
+    d.m.step = flipped
+    assert d.run(25, until=lambda d: m.state == "LAND")
+
+
 def test_find_waits_then_sweeps_then_lands_on_timeout():
     m, d = fly_to_find(find_timeout_s=20.0)
     yaws = []
