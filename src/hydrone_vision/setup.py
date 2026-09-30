@@ -23,6 +23,7 @@ setup(
         'console_scripts': [
             'vision_node = hydrone_vision.vision_node:main',
             'pad_detector_node = hydrone_vision.pad_detector_node:main',
+            'gesture_detector_node = hydrone_vision.gesture_detector_node:main',
         ],
     },
 )
