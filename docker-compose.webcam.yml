@@ -1,0 +1,8 @@
+# The host webcam inside the container, for Phase 3 in the simulator with a
+# real operator: gesture_detector_node reads it instead of the sim's camera
+# (BiguaSim has no person in it). Added by `scripts/docker_up.sh --webcam`;
+# WEBCAM_DEVICE picks the host device, it always appears as /dev/video0 inside.
+services:
+  hydrone:
+    devices:
+      - ${WEBCAM_DEVICE:-/dev/video0}:/dev/video0

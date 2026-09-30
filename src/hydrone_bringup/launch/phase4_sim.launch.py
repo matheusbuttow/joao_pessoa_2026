@@ -239,12 +239,14 @@ def _launch_setup(context, *args, **kwargs):
 
     # Phase 3 (mission:=gesture, via phase3_sim.launch.py): the camera the
     # scenario calls FrontCamera -> gestures -> the mission. The sim has no
-    # person in it, so /hydrone/gesture/inject stands in for the arms.
+    # person in it, so /hydrone/gesture/inject stands in for the arms — or,
+    # gesture_source:=webcam, the host webcam watches a real operator.
     is_gesture = IfCondition(PythonExpression(["'", LaunchConfiguration('mission'), "' == 'gesture'"]))
+    webcam = LaunchConfiguration('gesture_source').perform(context) == 'webcam'
     gesture_detector = Node(
         package='hydrone_vision', executable='gesture_detector_node', output='screen',
         condition=is_gesture,
-        parameters=[{
+        parameters=[{'source': 'device', 'device': '/dev/video0'} if webcam else {
             'source': 'topic',
             'image_topic': f'{prefix}/FrontCamera',
         }],
@@ -256,6 +258,9 @@ def _launch_setup(context, *args, **kwargs):
             'lidar_mount': mount_xyz,
             'auto_start': LaunchConfiguration('auto_start').perform(context).lower() == 'true',
             'allow_inject': LaunchConfiguration('allow_inject').perform(context).lower() == 'true',
+            # the webcam does not turn with the simulated drone: yawing to
+            # centre the operator would never centre them, and spin forever
+            'track_yaw': not webcam,
         }],
     )
 
@@ -300,6 +305,10 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'allow_inject', default_value='true',
             description='mission:=gesture: accept gestures typed on /hydrone/gesture/inject.'),
+        DeclareLaunchArgument(
+            'gesture_source', default_value='sim',
+            description="mission:=gesture: 'sim' reads the scenario's FrontCamera, "
+                        "'webcam' the container's /dev/video0 (docker_up.sh --webcam)."),
         DeclareLaunchArgument(
             'measure_drift', default_value='true',
             description='Log LIO drift against ground truth (sim only, never fed back).'),

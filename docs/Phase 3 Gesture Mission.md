@@ -59,6 +59,12 @@ or from the keyboard, in a second terminal inside the container (`docker compose
 
     ros2 run hydrone_mission gesture_keys     # w/s/a/d, r/f, t, l, space; q quits
 
+**With your own arms (MediaPipe on the host webcam):**
+
+    scripts/docker_up.sh --phase3 --webcam          # WEBCAM_DEVICE=/dev/video2 to pick another
+
+Stand 2–3 m from the webcam with your whole upper body in view. The webcam plays the drone's camera: your LEFT arm out appears on image right, so the drone goes to ITS right, as if you were facing it. `track_yaw` is off in this mode, because the webcam does not turn with the simulated drone. To see what MediaPipe sees: `IMAGE_TOPIC=/hydrone/gesture/debug_image scripts/dev_shell.sh`.
+
 `HumanGesture.msg` gained fields, and there are new entry points. On a `--dev` container that means running `scripts/dev_rebuild.sh` once.
 
 Real drone: start the Livox driver (`ros2 launch livox_ros_driver2 msg_MID360_launch.py`; the repo only carries its messages), then:

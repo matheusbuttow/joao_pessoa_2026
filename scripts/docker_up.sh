@@ -2,7 +2,8 @@
 # Bring up the full simulation stack in Docker.
 #
 # Usage: scripts/docker_up.sh [--dev] [--no-build] [--phase1] [--landing-sites]
-#                             [--phase3] [--phase4] [--ground-truth] [--no-odom-print]
+#                             [--phase3] [--webcam] [--phase4] [--ground-truth]
+#                             [--no-odom-print]
 #                             [--world HOST[:PORT]] [--world-port PORT]
 #                             [name:=value ...] [docker compose up args...]
 #   --dev             mount the project packages from the host into the
@@ -24,6 +25,10 @@
 #                     1 m forward, 90 deg right, obey the operator's arms).
 #                     The sim has no person: type gestures on
 #                     /hydrone/gesture/inject. See docs/Phase 3 Gesture Mission.md.
+#   --webcam          with --phase3: the operator is YOU, in front of this
+#                     host's webcam (WEBCAM_DEVICE, default /dev/video0).
+#                     MediaPipe reads the webcam instead of the sim camera and
+#                     the simulated drone flies your arm gestures.
 #   --phase4          bring up the OTHER AIRCRAFT: the Kopis X8 flying on its
 #                     Livox Mid-360 (config-KopisX8.yaml, an engine raycast
 #                     lidar). FAST-LIO odometry is the EKF's external nav; the
@@ -78,6 +83,7 @@ DEV_MODE=false
 DO_BUILD=true
 WORLD_ADDRESS="${WORLD_ADDRESS:-}"
 WORLD_PORT="${WORLD_PORT:-8770}"
+WEBCAM=false
 launch_args=()
 compose_args=()
 # --world and --world-port take a value, so the next argument belongs to them
@@ -110,6 +116,7 @@ for arg in "$@"; do
         --phase1)        HYDRONE_LAUNCH=phase1_sim.launch.py ;;
         --landing-sites) HYDRONE_LAUNCH=landing_sites_sim.launch.py ;;
         --phase3)        HYDRONE_LAUNCH=phase3_sim.launch.py ;;
+        --webcam)        WEBCAM=true ;;
         --phase4)        HYDRONE_LAUNCH=phase4_sim.launch.py ;;
         --ground-truth)  ODOM_SOURCE=ground_truth ;;
         --dev)           DEV_MODE=true; DO_BUILD=false ;;
@@ -125,6 +132,18 @@ done
 # Joined with spaces because docker compose interpolates this into the `command:`
 # STRING and then splits it shell-style. That also means a launch argument whose
 # value contains a space would not survive; none of ours do.
+if [ "$WEBCAM" = true ]; then
+    if [ "$HYDRONE_LAUNCH" != phase3_sim.launch.py ]; then
+        echo "ERROR: --webcam only goes with --phase3" >&2
+        exit 1
+    fi
+    export WEBCAM_DEVICE="${WEBCAM_DEVICE:-/dev/video0}"
+    if [ ! -e "$WEBCAM_DEVICE" ]; then
+        echo "ERROR: no webcam at $WEBCAM_DEVICE (ls /dev/video*; set WEBCAM_DEVICE)" >&2
+        exit 1
+    fi
+    launch_args+=("gesture_source:=webcam")
+fi
 HYDRONE_LAUNCH_ARGS="${launch_args[*]}"
 
 # odom_source and odom_error_print belong to the Holybro launches, which choose
@@ -187,6 +206,10 @@ fi
 if [ "$DEV_MODE" = true ]; then
     echo "Dev mode — project packages bind-mounted from ./src (no image build)"
     compose_files+=(-f docker-compose.dev.yml)
+fi
+if [ "$WEBCAM" = true ]; then
+    echo "Webcam       : $WEBCAM_DEVICE -> MediaPipe (you are the operator)"
+    compose_files+=(-f docker-compose.webcam.yml)
 fi
 
 if [ -n "$WORLD_ADDRESS" ]; then
