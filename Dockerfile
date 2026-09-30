@@ -115,6 +115,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       ros-humble-pcl-ros \
     && rm -rf /var/lib/apt/lists/*
 
+# 4c. Phase 3 gestures: MediaPipe PINNED. The unpinned install above now gets
+#     mediapipe 1.x, which dropped mp.solutions.pose (gesture_detector_node dies
+#     with "has no mp.solutions.pose"). 0.10.18 still has it and ships cp310
+#     wheels for x86_64 AND aarch64 (the Raspberry Pi 5; 0.10.21 has no aarch64).
+#     Here, below the ArduPilot build, so changing it rebuilds nothing slow.
+RUN pip3 install --no-cache-dir "mediapipe==0.10.18" "numpy<2" \
+    && python3 -c "import mediapipe as mp; mp.solutions.pose.Pose"
+
 # 5. Project packages — LAST, so a source edit replays only this build.
 #    `--symlink-install` chains install/ -> build/ -> src/, which is what makes
 #    docker-compose.dev.yml's bind mounts live without any rebuild at all.

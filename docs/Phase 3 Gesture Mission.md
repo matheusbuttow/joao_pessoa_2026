@@ -73,7 +73,7 @@ Real drone: start the Livox driver (`ros2 launch livox_ros_driver2 msg_MID360_la
     ros2 service call /hydrone/phase3/start std_srvs/srv/Trigger
 
 ## Before the first flight
-1. **MediaPipe version.** The Dockerfile installs `mediapipe` unpinned, and the node uses `mp.solutions.pose`, which recent releases dropped. Check with `python3 -c "import mediapipe as mp; mp.solutions.pose"`. If it fails, pin `mediapipe<0.10.22` in the Dockerfile: MediaPipe is the only pose model the detector has.
+1. **MediaPipe version.** Pinned to 0.10.18 in the Dockerfile (step 4c): 1.x dropped `mp.solutions.pose`, and 0.10.21 has no aarch64 wheel for the Pi. Outside Docker (the Pi), install the same version.
 2. **Frame rate on the Pi 5.** The detector logs frames/s every 10 s. It needs ≥10 Hz. `model_complexity:=0` is the lite model.
 3. **Props off:**
    - move the drone by hand and check that `/hydrone/lio/odom` follows it;

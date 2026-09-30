@@ -173,6 +173,9 @@ xhost +local:docker
 
 # Make sure the shared asset dir exists so the bind mount doesn't create it root-owned
 mkdir -p "$HOME/.local/share/biguasim"
+# Same for ./maps (LIO maps + drift logs): created by Docker it is root-owned
+# and the unprivileged container user gets "Permission denied: /ws/maps/logs".
+mkdir -p maps
 
 # Locate the BiguaSim repo (mounted into the container). Set BS_SIM_DIR to
 # override; otherwise try the common sibling locations.
