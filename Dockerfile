@@ -120,8 +120,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 #     with "has no mp.solutions.pose"). 0.10.18 still has it and ships cp310
 #     wheels for x86_64 AND aarch64 (the Raspberry Pi 5; 0.10.21 has no aarch64).
 #     Here, below the ArduPilot build, so changing it rebuilds nothing slow.
+#     Pose() DOWNLOADS its model into site-packages the first time it runs;
+#     at runtime the unprivileged container user may not write there
+#     ("Permission denied: .../pose_landmark_lite.tflite"), so fetch both the
+#     lite (0) and full (1) models now, as root.
 RUN pip3 install --no-cache-dir "mediapipe==0.10.18" "numpy<2" \
-    && python3 -c "import mediapipe as mp; mp.solutions.pose.Pose"
+    && python3 -c "import mediapipe as mp; [mp.solutions.pose.Pose(model_complexity=c).close() for c in (0, 1)]" \
+    && ls /usr/local/lib/python3.10/dist-packages/mediapipe/modules/pose_landmark/pose_landmark_lite.tflite
 
 # 5. Project packages — LAST, so a source edit replays only this build.
 #    `--symlink-install` chains install/ -> build/ -> src/, which is what makes
