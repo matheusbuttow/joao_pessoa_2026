@@ -50,11 +50,26 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # controller_node speaks (arming, mode, setpoints). Also provides mavros_msgs,
 # a runtime import of controller_node. install_geographiclib_datasets pulls the
 # geoid the global-position plugin needs (non-fatal if it can't download).
-RUN apt-get update && apt-get install -y \
-      ros-humble-mavros ros-humble-mavros-msgs ros-humble-mavros-extras \
-      geographiclib-tools \
+#
+# The four MAVROS debs come from ros2-TESTING. The 2026-09 Humble sync dropped
+# ros-humble-mavros, -mavros-extras and -libmavconn from the main repo
+# ("Unable to locate package ros-humble-mavros"); testing still has them
+# (2.16.0, with a matching mavros-msgs). Testing is only ever used to
+# DOWNLOAD those four files, through a throwaway apt config: its Release
+# metadata is identical to main's, so pinning cannot keep the rest of testing
+# out. Installing the local debs then resolves every other dependency from
+# main, and fails loudly if one needed testing too.
+RUN T=/tmp/ros-testing && mkdir -p "$T/parts" "$T/lists/partial" "$T/debs" \
+    && for f in /etc/apt/sources.list.d/ros2*; do \
+        sed 's#/ros2/ubuntu#/ros2-testing/ubuntu#' "$f" > "$T/parts/${f##*/}"; \
+    done \
+    && TESTING="-o Dir::Etc::sourcelist=/dev/null -o Dir::Etc::sourceparts=$T/parts -o Dir::State::Lists=$T/lists" \
+    && apt-get $TESTING update \
+    && cd "$T/debs" && apt-get $TESTING download \
+        ros-humble-mavros ros-humble-mavros-msgs ros-humble-mavros-extras ros-humble-libmavconn \
+    && apt-get update && apt-get install -y "$T"/debs/*.deb geographiclib-tools \
     && (geographiclib-get-geoids egm96-5 || true) \
-    && rm -rf /var/lib/apt/lists/*
+    && cd / && rm -rf "$T" /var/lib/apt/lists/*
 
 # ─────────────────────────────────────────────────────────────────────────────
 # LAYER ORDER MATTERS BELOW THIS LINE.
