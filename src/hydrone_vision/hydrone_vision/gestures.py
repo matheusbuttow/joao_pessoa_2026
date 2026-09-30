@@ -1,9 +1,9 @@
 """
 gestures — pure core of the Phase 3 gesture reader: keypoints -> gesture.
 
-No camera, no ROS, no model: tested headless in test/test_gestures.py. The
-pose backends in gesture_detector_node turn an image into COCO-17 keypoints in
-PIXELS; everything here works on those.
+No camera, no ROS, no model: tested headless in test/test_gestures.py.
+gesture_detector_node turns an image into COCO-17 keypoints in PIXELS (MediaPipe
+Pose, mapped by mediapipe_to_coco); everything here works on those.
 
 Image convention: x to the right, y down. Keypoints are COCO-17.
 
@@ -126,18 +126,3 @@ def person_center(kpts, conf, width, height):
             return 2.0 * cx / float(width) - 1.0, size
     return None
 
-
-def largest_person(people):
-    """Pick the operator out of several skeletons: the widest shoulders.
-
-    `people` is a list of (kpts, conf). The nearest person is the operator;
-    somebody walking behind them must not steer the drone.
-    """
-    best, best_w = None, -1.0
-    for kpts, conf in people:
-        if conf[L_SH] < MIN_CONF or conf[R_SH] < MIN_CONF:
-            continue
-        w = abs(kpts[L_SH][0] - kpts[R_SH][0])
-        if w > best_w:
-            best, best_w = (kpts, conf), w
-    return best

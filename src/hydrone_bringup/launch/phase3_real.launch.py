@@ -86,7 +86,6 @@ def _launch_setup(context, *args, **kwargs):
         parameters=[{'source': 'device', 'device': lc('camera_device'),
                      'rotate_deg': int(lc('camera_rotate_deg')),
                      'mirror': lc('camera_mirror').lower() == 'true',
-                     'backend': lc('gesture_backend'),
                      'debug_image': lc('debug_image').lower() == 'true'}])
 
     mission = Node(
@@ -118,7 +117,6 @@ def generate_launch_description():
         DeclareLaunchArgument('camera_mirror', default_value='false',
                               description='true if the camera mirrors the image '
                                           '(DIREITA/ESQUERDA come out swapped).'),
-        DeclareLaunchArgument('gesture_backend', default_value='mediapipe'),
         DeclareLaunchArgument('debug_image', default_value='true'),
         DeclareLaunchArgument('auto_start', default_value='false',
                               description='true arms by itself 5 s after odometry: sim only.'),

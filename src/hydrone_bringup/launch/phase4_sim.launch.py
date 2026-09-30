@@ -247,7 +247,6 @@ def _launch_setup(context, *args, **kwargs):
         parameters=[{
             'source': 'topic',
             'image_topic': f'{prefix}/FrontCamera',
-            'backend': LaunchConfiguration('gesture_backend'),
         }],
     )
     gesture_mission = Node(
@@ -301,9 +300,6 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'allow_inject', default_value='true',
             description='mission:=gesture: accept gestures typed on /hydrone/gesture/inject.'),
-        DeclareLaunchArgument(
-            'gesture_backend', default_value='mediapipe',
-            description="mission:=gesture: pose model, 'mediapipe' or 'yolo'."),
         DeclareLaunchArgument(
             'measure_drift', default_value='true',
             description='Log LIO drift against ground truth (sim only, never fed back).'),

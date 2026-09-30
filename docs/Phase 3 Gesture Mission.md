@@ -12,7 +12,7 @@ Back to [[Hydrone]]. The drone takes off, flies 1 m forward, turns 90° right to
 | Piece | What it does |
 |---|---|
 | `hydrone_vision/gestures.py` | Pure: COCO-17 keypoints → gesture (frl_core's classifier), MediaPipe → COCO mapping, operator position in the image |
-| `hydrone_vision/gesture_detector_node.py` | Camera → pose model (MediaPipe or YOLO-pose) → `/hydrone/vision/human_gesture` for every frame. Also publishes `/hydrone/gesture/debug_image` |
+| `hydrone_vision/gesture_detector_node.py` | Camera → MediaPipe Pose → `/hydrone/vision/human_gesture` for every frame. Also publishes `/hydrone/gesture/debug_image` |
 | `hydrone_mission/gesture/mission.py` | Pure state machine: debounce, the opening legs, the safety limits |
 | `hydrone_mission/phase3_gesture_node.py` | Thin ROS wrapper: LIO pose, lidar, gestures and MAVROS |
 | `phase3_sim.launch.py` | `phase4_sim` with `config-KopisX8Cam.yaml` (the Kopis plus a `FrontCamera`) and `mission:=gesture` |
@@ -67,7 +67,7 @@ Real drone: start the Livox driver (`ros2 launch livox_ros_driver2 msg_MID360_la
     ros2 service call /hydrone/phase3/start std_srvs/srv/Trigger
 
 ## Before the first flight
-1. **MediaPipe version.** The Dockerfile installs `mediapipe` unpinned, and the node uses `mp.solutions.pose`, which recent releases dropped. Check with `python3 -c "import mediapipe as mp; mp.solutions.pose"`. If it fails, pin `mediapipe<0.10.22` or use `gesture_backend:=yolo` (`pip install ultralytics`).
+1. **MediaPipe version.** The Dockerfile installs `mediapipe` unpinned, and the node uses `mp.solutions.pose`, which recent releases dropped. Check with `python3 -c "import mediapipe as mp; mp.solutions.pose"`. If it fails, pin `mediapipe<0.10.22` in the Dockerfile: MediaPipe is the only pose model the detector has.
 2. **Frame rate on the Pi 5.** The detector logs frames/s every 10 s. It needs ≥10 Hz. `model_complexity:=0` is the lite model.
 3. **Props off:**
    - move the drone by hand and check that `/hydrone/lio/odom` follows it;

@@ -11,7 +11,7 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 
 from hydrone_vision.gestures import (L_EL, L_SH, L_WR, R_EL, R_SH, R_WR, arm_state,  # noqa: E402
-                                     classify, largest_person, mediapipe_to_coco,
+                                     classify, mediapipe_to_coco,
                                      person_center)
 
 UPPER, FORE = 60.0, 55.0
@@ -88,14 +88,12 @@ def test_mediapipe_landmarks_scale_to_pixels():
     assert ang == pytest.approx(45.0)
 
 
-def test_person_center_and_largest():
+def test_person_center():
     near = skeleton(0, 0, cx=480.0, half=80.0)
     far = skeleton(0, 0, cx=100.0, half=30.0)
     x, size = person_center(*near, 640, 480)
     assert x == pytest.approx(0.5) and size == pytest.approx(160 / 640)
-    assert largest_person([far, near])[0][L_SH] == near[0][L_SH]
     k, c = far
     c = list(c)
     c[L_SH] = c[R_SH] = c[11] = c[12] = 0.1
     assert person_center(k, c, 640, 480) is None
-    assert largest_person([(k, c)]) is None

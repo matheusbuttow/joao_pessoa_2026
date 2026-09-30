@@ -13,13 +13,10 @@ The gesture is the RAW per-frame verdict of hydrone_vision.gestures.classify.
 Holding it in time (debounce), and what the drone does with it, is the
 mission's business: phase3_gesture_node.
 
-Backends (pose model):
-  mediapipe  MediaPipe Pose, single person, CPU. model_complexity 0 (lite) runs
-             ~20-30 Hz on a Raspberry Pi 5 at 640x480; 1 is ~2x slower and
-             steadier on the arms. In the Docker image already.
-  yolo       ultralytics YOLOv8/11-pose (COCO-17 natively, several people: the
-             widest shoulders are the operator). pip install ultralytics; the
-             nano model at imgsz 320 is ~8-12 Hz on the Pi 5 CPU.
+Pose model: MediaPipe Pose (single person, CPU, in the Docker image), its 33
+landmarks mapped to COCO-17. model_complexity 0 (lite) is the fast one, 1 is
+~2x slower and steadier on the arms. Neither rate is measured on the Pi 5 yet:
+the node logs frames/s every 10 s.
 """
 
 import threading
@@ -37,13 +34,12 @@ from sensor_msgs.msg import Image
 from hydrone_msgs.msg import HumanGesture
 
 from hydrone_vision.gestures import (L_EL, L_SH, L_WR, R_EL, R_SH, R_WR, classify,
-                                     largest_person, mediapipe_to_coco, person_center)
+                                     mediapipe_to_coco, person_center)
 from hydrone_vision.image_convert import bgr_image_to_numpy, numpy_to_image
 
 
-# ── pose backends: bgr image -> list of (kpts (17,2) px, conf (17,)) ─────────
-
-class MediaPipeBackend:
+class MediaPipePose:
+    """bgr image -> (kpts (17,2) px, conf (17,)) of the one person, or None."""
 
     def __init__(self, complexity=0, min_detection=0.5, min_tracking=0.5):
         import mediapipe as mp
@@ -51,8 +47,7 @@ class MediaPipeBackend:
         if solutions is None or not hasattr(solutions, "pose"):
             raise RuntimeError(
                 f"mediapipe {getattr(mp, '__version__', '?')} has no mp.solutions.pose "
-                "(dropped in recent releases). pip install 'mediapipe<0.10.22' or run "
-                "with backend:=yolo")
+                "(dropped in recent releases): pip install 'mediapipe<0.10.22'")
         self.pose = solutions.pose.Pose(
             static_image_mode=False, model_complexity=int(complexity),
             smooth_landmarks=True, enable_segmentation=False,
@@ -63,24 +58,8 @@ class MediaPipeBackend:
         h, w = bgr.shape[:2]
         res = self.pose.process(cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB))
         if not res.pose_landmarks:
-            return []
-        return [mediapipe_to_coco(res.pose_landmarks.landmark, w, h)]
-
-
-class YoloBackend:
-
-    def __init__(self, model="yolov8n-pose.pt", imgsz=320, conf=0.4):
-        from ultralytics import YOLO
-        self.model, self.imgsz, self.conf = YOLO(model), int(imgsz), float(conf)
-
-    def infer(self, bgr):
-        r = self.model(bgr, imgsz=self.imgsz, conf=self.conf, verbose=False)[0]
-        if r.keypoints is None or r.keypoints.xy is None or len(r.keypoints.xy) == 0:
-            return []
-        xy = r.keypoints.xy.cpu().numpy()
-        cf = r.keypoints.conf
-        cf = cf.cpu().numpy() if cf is not None else np.ones(xy.shape[:2])
-        return [(xy[i].tolist(), cf[i].tolist()) for i in range(len(xy))]
+            return None
+        return mediapipe_to_coco(res.pose_landmarks.landmark, w, h)
 
 
 class LatestFrame(threading.Thread):
@@ -128,11 +107,8 @@ class GestureDetectorNode(Node):
             ("rotate_deg", 0),              # camera mounted sideways/upside down
             ("mirror", False),              # undo a camera that mirrors (selfie mode):
                                             # it swaps DIREITA and ESQUERDA
-            ("backend", "mediapipe"),       # 'mediapipe' | 'yolo'
             ("model_complexity", 0),
             ("min_detection_conf", 0.5),
-            ("yolo_model", "yolov8n-pose.pt"),
-            ("yolo_imgsz", 320),
             ("process_hz", 30.0),           # upper bound; the model sets the real rate
             ("debug_image", True),
             ("debug_hz", 3.0),
@@ -141,15 +117,7 @@ class GestureDetectorNode(Node):
         if int(self.par["rotate_deg"]) not in ROTATE:
             raise ValueError("rotate_deg must be 0, 90, 180 or 270")
 
-        backend = str(self.par["backend"])
-        if backend == "mediapipe":
-            self.model = MediaPipeBackend(self.par["model_complexity"],
-                                          self.par["min_detection_conf"])
-        elif backend == "yolo":
-            self.model = YoloBackend(self.par["yolo_model"], self.par["yolo_imgsz"],
-                                     self.par["min_detection_conf"])
-        else:
-            raise ValueError(f"unknown backend {backend!r}")
+        self.model = MediaPipePose(self.par["model_complexity"], self.par["min_detection_conf"])
 
         self.grabber, self.cap = None, None
         self._topic_frame, self._topic_seq = None, 0
@@ -172,7 +140,7 @@ class GestureDetectorNode(Node):
         self._n, self._t_rate = 0, time.monotonic()
         self.create_timer(1.0 / max(float(self.par["process_hz"]), 1.0), self._tick)
         self.get_logger().info(
-            f"gesture_detector up: {backend} on "
+            f"gesture_detector up: MediaPipe Pose on "
             f"{self.par['device'] if self.par['source'] == 'device' else self.par['image_topic']}")
 
     # ── frames in ───────────────────────────────────────────────────────────
@@ -219,7 +187,7 @@ class GestureDetectorNode(Node):
             frame = cv2.flip(frame, 1)
         h, w = frame.shape[:2]
 
-        person = largest_person(self.model.infer(frame))
+        person = self.model.infer(frame)
         msg = HumanGesture()
         msg.header.stamp = self.get_clock().now().to_msg()
         msg.header.frame_id = "front_cam_optical_frame"
